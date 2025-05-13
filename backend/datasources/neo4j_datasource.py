@@ -85,9 +85,9 @@ class Neo4jDatasource:
         try:
             with self.driver.session(database=self.settings.database) as session:
                 
-                content_field = "content" #self.settings.content_column
-                title_field = "title" #self.settings.title_column
-                id_field = "chunk_id" #self.settings.id_column
+                content_field = "content" 
+                title_field = "title" 
+                id_field = "chunk_id" 
             
                 result = session.run(f"""
                     MATCH (c)-[:HAS_KEYWORD]->(k:Keyword)
@@ -104,22 +104,7 @@ class Neo4jDatasource:
                     LIMIT $top_k
                 """, keywords=keywords, top_k=top_k)
                 
-                # result = session.run(f"""
-                #     MATCH (c:Chunk)-[:HAS_KEYWORD]->(k:Keyword)
-                #     WHERE k.value IN $keywords
-                #     WITH c, collect(k.value) AS matched_keywords, count(k) AS keyword_count
-                #     RETURN c, matched_keywords, keyword_count
-                #     ORDER BY keyword_count DESC
-                #     LIMIT $top_k
-                # """, keywords=keywords, top_k=top_k)
-                
-                # return [{
-                #         "document": dict(record["c"]),
-                #         "matched_keywords": record["matched_keywords"],
-                #         "keyword_count": record["keyword_count"],
-                #         "source": "neo4j"}
-                #         for record in result]
-
+              
                 # Format results to match expected output format
                 results = []
                 for record in result:

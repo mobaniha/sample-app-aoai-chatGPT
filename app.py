@@ -283,8 +283,7 @@ def prepare_model_args(request_body, request_headers):
 
     model_args = {
         "messages": messages,
-        "temperature": app_settings.azure_openai.temperature,
-        "max_tokens": app_settings.azure_openai.max_tokens,
+        "max_completion_tokens": app_settings.azure_openai.max_tokens,
         "top_p": app_settings.azure_openai.top_p,
         "stop": app_settings.azure_openai.stop_sequence,
         "stream": app_settings.azure_openai.stream,
@@ -417,15 +416,47 @@ async def process_function_call(response):
 
 async def send_chat_request(request_body, request_headers):
     filtered_messages = []
+    user_message = ""
     messages = request_body.get("messages", [])
     for message in messages:
         if message.get("role") != 'tool':
             filtered_messages.append(message)
+        
+        if message.get("role") == "user":
+            user_message = message["content"]
             
     request_body['messages'] = filtered_messages
     model_args = prepare_model_args(request_body, request_headers)
 
     try:
+
+        from backend.datasources.neo4j_datasource import Neo4jDatasource
+        from backend.agents.agents import get_agent_response
+
+        agent_response = await get_agent_response(user_message)
+
+        reviewer_message = [
+            msg.content for msg in agent_response.messages 
+            if (
+                hasattr(msg, 'type') and msg.type == 'TextMessage' and
+                hasattr(msg, 'source') and msg.source == 'CaseReviewer'
+            )
+        ]
+        
+        if not (m.get("role") == "system" for m in model_args["messages"]):
+            model_args["messages"].insert(
+                0,
+                {
+                    "role": "system",
+                    "content": app_settings.azure_openai.system_message
+                }
+            )
+
+        model_args["messages"].append({
+            "role": "user", #tool
+            "content": reviewer_message[-1]
+        })
+        
         azure_openai_client = await init_openai_client()
         raw_response = await azure_openai_client.chat.completions.with_raw_response.create(**model_args)
         response = raw_response.parse()

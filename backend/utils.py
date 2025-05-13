@@ -230,3 +230,41 @@ def comma_separated_string_to_list(s: str) -> List[str]:
     '''
     return s.strip().replace(' ', '').split(',')
 
+
+class NestedAppSettings:
+    """Application settings class that supports nested attributes."""
+    
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            # If value is a dict, convert it to a NestedAppSettings object
+            if isinstance(value, dict):
+                setattr(self, key, NestedAppSettings(**value))
+            else:
+                setattr(self, key, value)
+    
+    @classmethod
+    def from_dict(cls, config_dict):
+        return cls(**config_dict)
+    
+def get_ada_large_embeddings(text):
+    from openai import AzureOpenAI
+
+    _api_key = os.environ.get("AZURE_OPENAI_EMBEDDING_KEY")
+    _api_version = os.environ.get("AZURE_OPENAI_PREVIEW_API_VERSION")
+    _azure_endpoint = os.environ.get("AZURE_OPENAI_EMBEDDING_ENDPOINT")
+    _deployment_name = os.environ.get("AZURE_OPENAI_EMBEDDING_NAME")
+
+    client = AzureOpenAI(
+        api_key=_api_key,
+        api_version=_api_version,
+        azure_endpoint=_azure_endpoint
+    )
+    
+    response = client.embeddings.create(
+                input=text,
+                model=_deployment_name
+            )
+    
+    data = response.data
+    embeddings = [item.embedding for item in data]
+    return embeddings[0]
